@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestionnaire — Dépenses Coursier</title>
+
+<!-- ============================================================
+  ÉTAPE DE CONFIGURATION : remplacez les valeurs ci-dessous
+  par celles de votre projet Firebase
+  (voir guide d'installation fourni)
+============================================================ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey:            "VOTRE_API_KEY",
+  authDomain:        "VOTRE_PROJECT.firebaseapp.com",
+  projectId:         "VOTRE_PROJECT_ID",
+  storageBucket:     "VOTRE_PROJECT.appspot.com",
+  messagingSenderId: "VOTRE_SENDER_ID",
+  appId:             "VOTRE_APP_ID"
+};
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;--card:#fff;--border:#e0ded6;
+  --text:#111;--muted:#666;--green:#1D9E75;--green-light:#E1F5EE;
+  --amber-bg:#FAEEDA;--amber:#854F0B;
+  --red-bg:#FCEBEB;--red:#A32D2D;
+  --blue-bg:#E6F1FB;--blue:#185FA5;
+  --gray-bg:#F1EFE8;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1a1a18;--card:#252522;--border:#3a3a36;--text:#f0ede6;--muted:#999;}
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
+.header{background:var(--card);border-bottom:0.5px solid var(--border);padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:500}
+.app{max-width:700px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.label{font-size:12px;color:var(--muted);margin-bottom:4px}
+.big{font-size:26px;font-weight:500}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+.btn{padding:9px 16px;border-radius:8px;border:0.5px solid var(--border);background:var(--card);cursor:pointer;font-size:13px;font-family:inherit;color:var(--text);transition:background .15s}
+.btn:hover{background:var(--bg)}
+.btn-green{background:var(--green);color:#fff;border-color:#0F6E56;font-weight:500}
+.btn-green:hover{background:#0F6E56}
+.btn-red{background:var(--red-bg);color:var(--red);border-color:#f7c1c1}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:500}
+.b-pending{background:var(--amber-bg);color:var(--amber)}
+.b-ok{background:#EAF3DE;color:#3B6D11}
+.b-refused{background:var(--red-bg);color:var(--red)}
+.b-suspect{background:var(--amber-bg);color:var(--amber)}
+.b-closed{background:var(--gray-bg);color:#5F5E5A}
+.alert{padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px}
+.alert-warn{background:var(--amber-bg);color:var(--amber);border:0.5px solid #FAC775}
+.alert-danger{background:var(--red-bg);color:var(--red);border:0.5px solid #f7c1c1}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border)}
+.row:last-child{border-bottom:none}
+input[type=number],input[type=date],input[type=text]{width:100%;padding:9px 12px;border:0.5px solid var(--border);border-radius:8px;font-size:15px;font-family:inherit;background:var(--card);color:var(--text);outline:none}
+input:focus{box-shadow:0 0 0 2px #9FE1CB;border-color:var(--green)}
+.dep-card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:10px}
+.dep-card.suspect{border-color:#FAC775;background:#fffdf7}
+.flex{display:flex;gap:8px;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:flex-start}
+.section-title{font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 8px}
+.stat-card{background:var(--gray-bg);border-radius:10px;padding:13px 15px}
+.tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:0.5px solid var(--border)}
+.tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+.period-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:12px}
+.hidden{display:none}
+.loader{text-align:center;color:var(--muted);padding:2rem;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>👔 Gestionnaire</h1>
+  <div id="period-status" class="period-badge" style="background:var(--green-light);color:var(--green);font-size:12px">⏳ Chargement...</div>
+</div>
+
+<div class="app">
+
+  <!-- ALERTES -->
+  <div id="alerts-zone"></div>
+
+  <!-- SOLDES -->
+  <div class="grid2">
+    <div class="stat-card">
+      <div class="label">💳 Solde Carte</div>
+      <div class="big" id="solde-carte">— MAD</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">💵 Solde Cash</div>
+      <div class="big" id="solde-cash">— MAD</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('depenses',this)">📋 Dépenses</button>
+    <button class="tab" onclick="switchTab('alimentation',this)">💰 Alimenter</button>
+    <button class="tab" onclick="switchTab('periode',this)">📅 Période</button>
+    <button class="tab" onclick="switchTab('export',this)">📊 Export</button>
+  </div>
+
+  <!-- TAB: DEPENSES -->
+  <div id="tab-depenses">
+    <div id="dep-list"><div class="loader">Chargement des dépenses...</div></div>
+  </div>
+
+  <!-- TAB: ALIMENTATION -->
+  <div id="tab-alimentation" class="hidden">
+    <div class="card">
+      <div class="section-title">Ajouter des fonds</div>
+      <div class="label" style="margin-bottom:6px">Type de compte</div>
+      <div class="flex" style="margin-bottom:14px">
+        <button class="btn" id="feed-carte-btn" onclick="setFeedType('carte')" style="flex:1">💳 Carte</button>
+        <button class="btn" id="feed-cash-btn" onclick="setFeedType('cash')" style="flex:1">💵 Cash</button>
+      </div>
+      <div class="label">Montant (MAD)</div>
+      <input type="number" id="feed-amount" placeholder="0.00" min="0" step="0.01" style="margin-bottom:10px">
+      <div class="label">Note (facultatif)</div>
+      <input type="text" id="feed-note" placeholder="Ex: virement du 01/06" style="margin-bottom:14px">
+      <button class="btn btn-green" onclick="doAlimentation()" style="width:100%">✅ Valider l'alimentation</button>
+      <div id="feed-msg" style="margin-top:8px;font-size:13px;text-align:center"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Historique alimentations</div>
+      <div id="feed-history"><div class="loader">Chargement...</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: PERIODE -->
+  <div id="tab-periode" class="hidden">
+    <div class="card" id="periode-card">
+      <div class="loader">Chargement...</div>
+    </div>
+  </div>
+
+  <!-- TAB: EXPORT -->
+  <div id="tab-export" class="hidden">
+    <div class="card">
+      <div class="section-title">Export Excel / CSV</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">Télécharge toutes les dépenses validées de la période en cours au format CSV (ouvrable dans Excel).</p>
+      <button class="btn btn-green" onclick="exportCSV()" style="width:100%;margin-bottom:10px">📥 Télécharger CSV</button>
+      <button class="btn" onclick="exportCSVAll()" style="width:100%">📥 Tout exporter (toutes périodes)</button>
+    </div>
+    <div class="card">
+      <div class="section-title">Statistiques rapides</div>
+      <div id="stats-zone"><div class="loader">Chargement...</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── Firebase init ───────────────────────────────────────────
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+// ─── State ───────────────────────────────────────────────────
+let feedType = 'carte';
+let currentPeriod = null;
+let allDeps = [];
+
+// ─── Init ────────────────────────────────────────────────────
+async function init() {
+  await loadPeriod();
+  listenDeps();
+  listenAlimentations();
+}
+
+// ─── Période ─────────────────────────────────────────────────
+async function loadPeriod() {
+  const snap = await db.collection('periodes').where('statut','==','OUVERTE').limit(1).get();
+  if (snap.empty) {
+    currentPeriod = null;
+    document.getElementById('period-status').textContent = '🔴 Aucune période';
+    document.getElementById('period-status').style.background = '#FCEBEB';
+    document.getElementById('period-status').style.color = '#A32D2D';
+    renderPeriodeCard();
+    return;
+  }
+  const doc = snap.docs[0];
+  currentPeriod = { id: doc.id, ...doc.data() };
+  document.getElementById('period-status').textContent = '🟢 Période ouverte : ' + currentPeriod.nom;
+  document.getElementById('period-status').style.background = '#E1F5EE';
+  document.getElementById('period-status').style.color = '#0F6E56';
+  renderPeriodeCard();
+  updateSoldes();
+}
+
+function renderPeriodeCard() {
+  const z = document.getElementById('periode-card');
+  if (!currentPeriod) {
+    z.innerHTML = `
+      <div class="section-title">Créer une nouvelle période</div>
+      <div class="label">Nom de la période</div>
+      <input type="text" id="period-nom" placeholder="Ex: Juin 2026" style="margin-bottom:10px">
+      <button class="btn btn-green" onclick="ouvrirPeriode()" style="width:100%">🟢 Ouvrir la période</button>
+      <div id="period-msg" style="margin-top:8px;font-size:13px;text-align:center"></div>`;
+  } else {
+    z.innerHTML = `
+      <div class="row"><span style="color:var(--muted)">Période</span><strong>${currentPeriod.nom}</strong></div>
+      <div class="row"><span style="color:var(--muted)">Ouverture</span><span>${currentPeriod.dateOuverture || '—'}</span></div>
+      <div class="row"><span style="color:var(--muted)">Solde carte ouverture</span><span>${(currentPeriod.soldeCarte||0).toFixed(2)} MAD</span></div>
+      <div class="row"><span style="color:var(--muted)">Solde cash ouverture</span><span>${(currentPeriod.soldeCash||0).toFixed(2)} MAD</span></div>
+      <div style="margin-top:14px">
+        <button class="btn btn-red" onclick="confirmerCloture()" style="width:100%">🔒 Clôturer la période</button>
+      </div>`;
+  }
+}
+
+async function ouvrirPeriode() {
+  const nom = document.getElementById('period-nom').value.trim();
+  if (!nom) { document.getElementById('period-msg').textContent = '⚠️ Entrez un nom.'; return; }
+  // soldes de clôture précédente comme soldes d'ouverture
+  const lastSnap = await db.collection('periodes').where('statut','==','CLOTUREE').orderBy('dateCloture','desc').limit(1).get();
+  let soldeCarte = 0, soldeCash = 0;
+  if (!lastSnap.empty) {
+    const last = lastSnap.docs[0].data();
+    soldeCarte = last.soldeClotureCarte || 0;
+    soldeCash = last.soldeClotureCash || 0;
+  }
+  await db.collection('periodes').add({
+    nom, statut:'OUVERTE',
+    dateOuverture: new Date().toISOString().split('T')[0],
+    soldeCarte, soldeCash
+  });
+  document.getElementById('period-msg').textContent = '✅ Période ouverte !';
+  await loadPeriod();
+}
+
+async function confirmerCloture() {
+  if (!confirm('Clôturer la période "' + currentPeriod.nom + '" ? Cette action est irréversible.')) return;
+  // calcul soldes de clôture
+  const sc = await computeSoldes();
+  await db.collection('periodes').doc(currentPeriod.id).update({
+    statut: 'CLOTUREE',
+    dateCloture: new Date().toISOString().split('T')[0],
+    soldeClotureCarte: sc.carte,
+    soldeClotureCash: sc.cash
+  });
+  // verrouiller les dépenses
+  const deps = await db.collection('depenses').where('periodeId','==',currentPeriod.id).get();
+  const batch = db.batch();
+  deps.docs.forEach(d => batch.update(d.ref, {statut:'CLOTUREE'}));
+  await batch.commit();
+  alert('✅ Période clôturée. Pensez à exporter le CSV.');
+  currentPeriod = null;
+  await loadPeriod();
+}
+
+// ─── Dépenses (temps réel) ────────────────────────────────────
+function listenDeps() {
+  db.collection('depenses').orderBy('createdAt','desc').limit(100)
+    .onSnapshot(snap => {
+      allDeps = snap.docs.map(d => ({id:d.id,...d.data()}));
+      renderDeps();
+      updateSoldes();
+      renderStats();
+      checkAlerts();
+    });
+}
+
+function renderDeps() {
+  const z = document.getElementById('dep-list');
+  const pending = allDeps.filter(d => d.statut==='EN_ATTENTE' || d.statut==='SUSPICION_DOUBLON');
+  const other   = allDeps.filter(d => d.statut!=='EN_ATTENTE' && d.statut!=='SUSPICION_DOUBLON');
+
+  let html = '';
+  if (pending.length) {
+    html += `<div class="section-title">⏳ À traiter (${pending.length})</div>`;
+    pending.forEach(d => { html += depCard(d, true); });
+  }
+  if (other.length) {
+    html += `<div class="section-title">Historique</div>`;
+    other.forEach(d => { html += depCard(d, false); });
+  }
+  if (!allDeps.length) html = '<div class="loader">Aucune dépense.</div>';
+  z.innerHTML = html;
+}
+
+function depCard(d, actions) {
+  const bClass = {EN_ATTENTE:'b-pending',VALIDEE:'b-ok',REFUSEE:'b-refused',SUSPICION_DOUBLON:'b-suspect',CLOTUREE:'b-closed'}[d.statut]||'b-pending';
+  const bLabel = {EN_ATTENTE:'⏳ En attente',VALIDEE:'✅ Validée',REFUSEE:'❌ Refusée',SUSPICION_DOUBLON:'⚠️ Doublon?',CLOTUREE:'🔒 Clôturée'}[d.statut]||d.statut;
+  const payLabel = {carte:'💳 Carte',cash:'💵 Cash',mixte:'🔀 Mixte'}[d.paiement]||d.paiement||'';
+  const susp = d.statut==='SUSPICION_DOUBLON';
+  return `<div class="dep-card${susp?' suspect':''}">
+    ${susp?`<div class="alert alert-warn" style="margin-bottom:8px;font-size:12px">⚠️ Suspicion de doublon — vérifiez avant de valider</div>`:''}
+    <div class="flex-between" style="margin-bottom:8px">
+      <div>
+        <div style="font-weight:500;font-size:15px">${d.categorie||'—'}</div>
+        <div style="font-size:12px;color:var(--muted)">${d.date||''} · ${payLabel} ${d.photo?'· 📸':''}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:18px;font-weight:500;color:var(--green)">${Number(d.montant||0).toFixed(2)} MAD</div>
+        <span class="badge ${bClass}">${bLabel}</span>
+      </div>
+    </div>
+    ${actions?`<div class="flex">
+      <button class="btn btn-green" style="flex:1;font-size:13px" onclick="valider('${d.id}','VALIDEE')">✅ Valider</button>
+      <button class="btn btn-red" style="flex:1;font-size:13px" onclick="valider('${d.id}','REFUSEE')">❌ Refuser</button>
+    </div>`:''}
+  </div>`;
+}
+
+async function valider(id, statut) {
+  const dep = allDeps.find(d => d.id===id);
+  if (!dep) return;
+  await db.collection('depenses').doc(id).update({statut, validatedAt: new Date().toISOString()});
+  if (statut==='VALIDEE') {
+    // mise à jour soldes via alimentation négative implicite — géré dans computeSoldes
+  }
+}
+
+// ─── Soldes ───────────────────────────────────────────────────
+async function computeSoldes() {
+  if (!currentPeriod) return {carte:0,cash:0};
+  // alimentations
+  const feedSnap = await db.collection('alimentations').where('periodeId','==',currentPeriod.id).get();
+  let carte = currentPeriod.soldeCarte || 0;
+  let cash  = currentPeriod.soldeCash  || 0;
+  feedSnap.docs.forEach(d => {
+    const f = d.data();
+    if (f.type==='carte') carte += f.montant||0;
+    else cash += f.montant||0;
+  });
+  // dépenses validées
+  const depSnap = await db.collection('depenses').where('periodeId','==',currentPeriod.id).where('statut','==','VALIDEE').get();
+  depSnap.docs.forEach(d => {
+    const dep = d.data();
+    const pay = dep.paiement;
+    if (pay==='carte') carte -= dep.montant||0;
+    else if (pay==='cash') cash -= dep.montant||0;
+    else if (pay==='mixte') { carte -= dep.montantCarte||0; cash -= dep.montantCash||0; }
+  });
+  return {carte, cash};
+}
+
+async function updateSoldes() {
+  const sc = await computeSoldes();
+  document.getElementById('solde-carte').textContent = sc.carte.toFixed(2) + ' MAD';
+  document.getElementById('solde-cash').textContent  = sc.cash.toFixed(2)  + ' MAD';
+  if (sc.carte < 200 || sc.cash < 100) checkAlerts();
+}
+
+// ─── Alimentations ────────────────────────────────────────────
+function setFeedType(type) {
+  feedType = type;
+  document.getElementById('feed-carte-btn').style.background = type==='carte'?'var(--green-light)':'';
+  document.getElementById('feed-carte-btn').style.color = type==='carte'?'var(--green)':'';
+  document.getElementById('feed-cash-btn').style.background = type==='cash'?'var(--green-light)':'';
+  document.getElementById('feed-cash-btn').style.color = type==='cash'?'var(--green)':'';
+}
+
+async function doAlimentation() {
+  if (!currentPeriod) { document.getElementById('feed-msg').textContent = '⚠️ Ouvrez d'abord une période.'; return; }
+  const amt = parseFloat(document.getElementById('feed-amount').value);
+  if (!amt || amt<=0) { document.getElementById('feed-msg').textContent = '⚠️ Montant invalide.'; return; }
+  const note = document.getElementById('feed-note').value.trim();
+  await db.collection('alimentations').add({
+    type: feedType, montant: amt, note,
+    periodeId: currentPeriod.id,
+    date: new Date().toISOString().split('T')[0],
+    createdAt: new Date().toISOString()
+  });
+  document.getElementById('feed-amount').value = '';
+  document.getElementById('feed-note').value = '';
+  document.getElementById('feed-msg').textContent = '✅ Alimentation enregistrée !';
+  setTimeout(()=>document.getElementById('feed-msg').textContent='',3000);
+  updateSoldes();
+}
+
+function listenAlimentations() {
+  db.collection('alimentations').orderBy('createdAt','desc').limit(50)
+    .onSnapshot(snap => {
+      const z = document.getElementById('feed-history');
+      if (snap.empty) { z.innerHTML='<div class="loader">Aucune alimentation.</div>'; return; }
+      z.innerHTML = snap.docs.map(d => {
+        const f = d.data();
+        return `<div class="row">
+          <div><div style="font-weight:500">${f.type==='carte'?'💳 Carte':'💵 Cash'} +${Number(f.montant||0).toFixed(2)} MAD</div>
+          <div style="font-size:12px;color:var(--muted)">${f.date||''} ${f.note?'· '+f.note:''}</div></div>
+        </div>`;
+      }).join('');
+    });
+}
+
+// ─── Alertes ─────────────────────────────────────────────────
+async function checkAlerts() {
+  const sc = await computeSoldes();
+  let html = '';
+  const suspects = allDeps.filter(d=>d.statut==='SUSPICION_DOUBLON');
+  if (suspects.length) html += `<div class="alert alert-warn">⚠️ ${suspects.length} dépense(s) en suspicion de doublon</div>`;
+  if (sc.carte < 200) html += `<div class="alert alert-warn">⚠️ Solde carte faible : ${sc.carte.toFixed(2)} MAD</div>`;
+  if (sc.cash < 100)  html += `<div class="alert alert-warn">⚠️ Solde cash faible : ${sc.cash.toFixed(2)} MAD</div>`;
+  document.getElementById('alerts-zone').innerHTML = html;
+}
+
+// ─── Stats ────────────────────────────────────────────────────
+function renderStats() {
+  const z = document.getElementById('stats-zone');
+  if (!allDeps.length) { z.innerHTML='<div class="loader">Aucune donnée.</div>'; return; }
+  const validated = allDeps.filter(d=>d.statut==='VALIDEE');
+  const total = validated.reduce((s,d)=>s+(d.montant||0),0);
+  const cats = {};
+  validated.forEach(d=>{ cats[d.categorie]=(cats[d.categorie]||0)+(d.montant||0); });
+  const topCats = Object.entries(cats).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  z.innerHTML = `
+    <div class="row"><span style="color:var(--muted)">Total validé</span><strong>${total.toFixed(2)} MAD</strong></div>
+    <div class="row"><span style="color:var(--muted)">Nb dépenses validées</span><strong>${validated.length}</strong></div>
+    <div class="row"><span style="color:var(--muted)">En attente</span><strong>${allDeps.filter(d=>d.statut==='EN_ATTENTE').length}</strong></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted);margin-bottom:6px">TOP CATÉGORIES</div>
+    ${topCats.map(([cat,amt])=>`<div class="row"><span>${cat}</span><span style="font-weight:500">${amt.toFixed(2)} MAD</span></div>`).join('')}`;
+}
+
+// ─── Export CSV ───────────────────────────────────────────────
+function exportCSV() {
+  const rows = [['ID','Date','Categorie','Montant','Paiement','Statut','Photo']];
+  allDeps.filter(d=>d.statut==='VALIDEE').forEach(d=>{
+    rows.push([d.id,d.date||'',d.categorie||'',d.montant||0,d.paiement||'',d.statut,d.photo?'Oui':'Non']);
+  });
+  downloadCSV(rows, 'depenses_validees.csv');
+}
+function exportCSVAll() {
+  const rows = [['ID','Date','Categorie','Montant','Paiement','Statut','Photo']];
+  allDeps.forEach(d=>{
+    rows.push([d.id,d.date||'',d.categorie||'',d.montant||0,d.paiement||'',d.statut,d.photo?'Oui':'Non']);
+  });
+  downloadCSV(rows, 'depenses_toutes.csv');
+}
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+}
+
+// ─── Tab switching ────────────────────────────────────────────
+function switchTab(name, btn) {
+  ['depenses','alimentation','periode','export'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.add('hidden');
+  });
+  document.getElementById('tab-'+name).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (name==='export') renderStats();
+  if (name==='periode') renderPeriodeCard();
+}
+
+// ─── Start ────────────────────────────────────────────────────
+setFeedType('carte');
+init();
+</script>
+</body>
+</html>
