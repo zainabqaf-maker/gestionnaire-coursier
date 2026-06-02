@@ -218,8 +218,9 @@ function renderPeriodeCard() {
 }
 
 async function ouvrirPeriode() {
-  const nom = document.getElementById('period-nom').value.trim();
-  if (!nom) { document.getElementById('period-msg').textContent = '⚠️ Entrez un nom.'; return; }
+  const inp = document.getElementById("period-nom");
+  const nom = inp ? inp.value.trim() : "";
+  if (!nom) { const m=document.getElementById("period-msg"); if(m) m.textContent="⚠️ Entrez un nom."; return; }
   // soldes de clôture précédente comme soldes d'ouverture
   const lastSnap = await db.collection('periodes').where('statut','==','CLOTUREE').orderBy('dateCloture','desc').limit(1).get();
   let soldeCarte = 0, soldeCash = 0;
@@ -361,7 +362,7 @@ function setFeedType(type) {
 }
 
 async function doAlimentation() {
-  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez une période."; return; }
+  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez d'abord une période."; return; }
   const amt = parseFloat(document.getElementById('feed-amount').value);
   if (!amt || amt<=0) { document.getElementById('feed-msg').textContent = '⚠️ Montant invalide.'; return; }
   const note = document.getElementById('feed-note').value.trim();
