@@ -361,7 +361,7 @@ function setFeedType(type) {
 }
 
 async function doAlimentation() {
-  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez d'abord une période."; return; }
+  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez une période."; return; }
   const amt = parseFloat(document.getElementById('feed-amount').value);
   if (!amt || amt<=0) { document.getElementById('feed-msg').textContent = '⚠️ Montant invalide.'; return; }
   const note = document.getElementById('feed-note').value.trim();
