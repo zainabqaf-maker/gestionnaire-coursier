@@ -12,12 +12,12 @@
 ============================================================ -->
 <script>
 const FIREBASE_CONFIG = {
-  apiKey:            "VOTRE_API_KEY",
-  authDomain:        "VOTRE_PROJECT.firebaseapp.com",
-  projectId:         "VOTRE_PROJECT_ID",
-  storageBucket:     "VOTRE_PROJECT.appspot.com",
-  messagingSenderId: "VOTRE_SENDER_ID",
-  appId:             "VOTRE_APP_ID"
+  apiKey:            "AIzaSyBULLg34cGZXf303FEStQQk1OheNfLlV2E",
+  authDomain:        "depenses-coursier.firebaseapp.com",
+  projectId:         "depenses-coursier",
+  storageBucket:     "depenses-coursier.firebasestorage.app",
+  messagingSenderId: "265496206172",
+  appId:             "1:265496206172:web:b4beb705b617444156bf99"
 };
 </script>
 
@@ -361,7 +361,7 @@ function setFeedType(type) {
 }
 
 async function doAlimentation() {
-  if (!currentPeriod) { document.getElementById('feed-msg').textContent = '⚠️ Ouvrez d'abord une période.'; return; }
+  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez d'abord une période."; return; }
   const amt = parseFloat(document.getElementById('feed-amount').value);
   if (!amt || amt<=0) { document.getElementById('feed-msg').textContent = '⚠️ Montant invalide.'; return; }
   const note = document.getElementById('feed-note').value.trim();
