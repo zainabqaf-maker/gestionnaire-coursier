@@ -228,30 +228,60 @@ async function renderPeriodeCard() {
   const totalFeedCarte = feeds.filter(f=>f.type==='carte').reduce((s,f)=>s+(f.montant||0),0);
   const totalFeedCash = feeds.filter(f=>f.type==='cash').reduce((s,f)=>s+(f.montant||0),0);
 
+  // Dépenses par mode de paiement
+  const depCarte  = validated.filter(d=>d.paiement==='carte').reduce((s,d)=>s+(d.montant||0),0);
+  const depCash   = validated.filter(d=>d.paiement==='cash').reduce((s,d)=>s+(d.montant||0),0);
+  const depMixteC = validated.filter(d=>d.paiement==='mixte').reduce((s,d)=>s+(d.montantCarte||0),0);
+  const depMixteK = validated.filter(d=>d.paiement==='mixte').reduce((s,d)=>s+(d.montantCash||0),0);
+  const totalDepCarte = depCarte + depMixteC;
+  const totalDepCash  = depCash  + depMixteK;
+
   z.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <div>
         <div style="font-size:17px;font-weight:500">📅 ${currentPeriod.nom}</div>
         <div style="font-size:12px;color:var(--muted)">Depuis le ${currentPeriod.dateOuverture||'—'}</div>
       </div>
       <span style="background:#E1F5EE;color:#0F6E56;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500">🟢 Ouverte</span>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-      <div style="background:var(--gray-bg);border-radius:8px;padding:10px 12px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">💳 Solde carte</div>
-        <div style="font-size:20px;font-weight:500;color:${sc.carte>=0?'var(--green)':'#A32D2D'}">${sc.carte.toFixed(2)} MAD</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div style="background:var(--gray-bg);border-radius:10px;padding:14px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💳 Carte</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Ouverture</span><span>${(currentPeriod.soldeCarte||0).toFixed(2)} MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Alimentations</span><span style="color:#0F6E56">+${totalFeedCarte.toFixed(2)} MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Dépenses</span><span style="color:#A32D2D">-${totalDepCarte.toFixed(2)} MAD</span>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde actuel</span>
+          <span style="font-size:19px;font-weight:500;color:${sc.carte>=0?'#0F6E56':'#A32D2D'}">${sc.carte.toFixed(2)} MAD</span>
+        </div>
       </div>
-      <div style="background:var(--gray-bg);border-radius:8px;padding:10px 12px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">💵 Solde cash</div>
-        <div style="font-size:20px;font-weight:500;color:${sc.cash>=0?'var(--green)':'#A32D2D'}">${sc.cash.toFixed(2)} MAD</div>
+      <div style="background:var(--gray-bg);border-radius:10px;padding:14px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:10px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💵 Cash</div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Ouverture</span><span>${(currentPeriod.soldeCash||0).toFixed(2)} MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Alimentations</span><span style="color:#0F6E56">+${totalFeedCash.toFixed(2)} MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+          <span style="color:var(--muted)">Dépenses</span><span style="color:#A32D2D">-${totalDepCash.toFixed(2)} MAD</span>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde actuel</span>
+          <span style="font-size:19px;font-weight:500;color:${sc.cash>=0?'#0F6E56':'#A32D2D'}">${sc.cash.toFixed(2)} MAD</span>
+        </div>
       </div>
     </div>
-    <div class="row"><span style="color:var(--muted)">Solde carte ouverture</span><span>${(currentPeriod.soldeCarte||0).toFixed(2)} MAD</span></div>
-    <div class="row"><span style="color:var(--muted)">Solde cash ouverture</span><span>${(currentPeriod.soldeCash||0).toFixed(2)} MAD</span></div>
-    <div class="row"><span style="color:var(--muted)">Alimentations carte</span><span style="color:var(--green)">+${totalFeedCarte.toFixed(2)} MAD</span></div>
-    <div class="row"><span style="color:var(--muted)">Alimentations cash</span><span style="color:var(--green)">+${totalFeedCash.toFixed(2)} MAD</span></div>
-    <div class="row"><span style="color:var(--muted)">Dépenses validées (${validated.length})</span><span style="color:#A32D2D">-${totalDep.toFixed(2)} MAD</span></div>
-    <div class="row"><span style="color:var(--muted)">En attente (${pending.length})</span><span style="color:#854F0B">${pending.length} dépense(s)</span></div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-top:0.5px solid var(--border)">
+      <span style="color:var(--muted)">En attente de validation</span>
+      <span style="color:#854F0B;font-weight:500">${pending.length} dépense(s)</span>
+    </div>
     <div style="margin-top:14px">
       <button class="btn btn-red" onclick="confirmerCloture()" style="width:100%">🔒 Clôturer la période</button>
     </div>`;
