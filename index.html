@@ -12,12 +12,12 @@
 ============================================================ -->
 <script>
 const FIREBASE_CONFIG = {
-  apiKey:            "AIzaSyBULLg34cGZXf303FEStQQk1OheNfLlV2E",
-  authDomain:        "depenses-coursier.firebaseapp.com",
-  projectId:         "depenses-coursier",
-  storageBucket:     "depenses-coursier.firebasestorage.app",
-  messagingSenderId: "265496206172",
-  appId:             "1:265496206172:web:b4beb705b617444156bf99"
+  apiKey:            "VOTRE_API_KEY",
+  authDomain:        "VOTRE_PROJECT.firebaseapp.com",
+  projectId:         "VOTRE_PROJECT_ID",
+  storageBucket:     "VOTRE_PROJECT.appspot.com",
+  messagingSenderId: "VOTRE_SENDER_ID",
+  appId:             "VOTRE_APP_ID"
 };
 </script>
 
@@ -141,6 +141,10 @@ input:focus{box-shadow:0 0 0 2px #9FE1CB;border-color:var(--green)}
     <div class="card" id="periode-card">
       <div class="loader">Chargement...</div>
     </div>
+    <div class="card hidden" id="periode-mouvements">
+      <div class="section-title">📊 Mouvements de la période</div>
+      <div id="mouvements-list"><div class="loader">Chargement...</div></div>
+    </div>
   </div>
 
   <!-- TAB: EXPORT -->
@@ -196,24 +200,87 @@ async function loadPeriod() {
   updateSoldes();
 }
 
-function renderPeriodeCard() {
+async function renderPeriodeCard() {
   const z = document.getElementById('periode-card');
+  const mz = document.getElementById('periode-mouvements');
   if (!currentPeriod) {
+    if (mz) mz.classList.add('hidden');
     z.innerHTML = `
       <div class="section-title">Créer une nouvelle période</div>
       <div class="label">Nom de la période</div>
       <input type="text" id="period-nom" placeholder="Ex: Juin 2026" style="margin-bottom:10px">
       <button class="btn btn-green" onclick="ouvrirPeriode()" style="width:100%">🟢 Ouvrir la période</button>
       <div id="period-msg" style="margin-top:8px;font-size:13px;text-align:center"></div>`;
-  } else {
-    z.innerHTML = `
-      <div class="row"><span style="color:var(--muted)">Période</span><strong>${currentPeriod.nom}</strong></div>
-      <div class="row"><span style="color:var(--muted)">Ouverture</span><span>${currentPeriod.dateOuverture || '—'}</span></div>
-      <div class="row"><span style="color:var(--muted)">Solde carte ouverture</span><span>${(currentPeriod.soldeCarte||0).toFixed(2)} MAD</span></div>
-      <div class="row"><span style="color:var(--muted)">Solde cash ouverture</span><span>${(currentPeriod.soldeCash||0).toFixed(2)} MAD</span></div>
-      <div style="margin-top:14px">
-        <button class="btn btn-red" onclick="confirmerCloture()" style="width:100%">🔒 Clôturer la période</button>
+    return;
+  }
+  // Calcul soldes temps réel
+  const sc = await computeSoldes();
+  // Alimentations
+  const feedSnap = await db.collection('alimentations').where('periodeId','==',currentPeriod.id).orderBy('createdAt','asc').get();
+  const feeds = feedSnap.docs.map(d=>({...d.data()}));
+  // Dépenses validées
+  const depSnap = await db.collection('depenses').where('periodeId','==',currentPeriod.id).orderBy('createdAt','asc').get();
+  const deps = depSnap.docs.map(d=>({...d.data()}));
+  const validated = deps.filter(d=>d.statut==='VALIDEE');
+  const pending = deps.filter(d=>d.statut==='EN_ATTENTE'||d.statut==='SUSPICION_DOUBLON');
+  const totalDep = validated.reduce((s,d)=>s+(d.montant||0),0);
+  const totalFeedCarte = feeds.filter(f=>f.type==='carte').reduce((s,f)=>s+(f.montant||0),0);
+  const totalFeedCash = feeds.filter(f=>f.type==='cash').reduce((s,f)=>s+(f.montant||0),0);
+
+  z.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div>
+        <div style="font-size:17px;font-weight:500">📅 ${currentPeriod.nom}</div>
+        <div style="font-size:12px;color:var(--muted)">Depuis le ${currentPeriod.dateOuverture||'—'}</div>
+      </div>
+      <span style="background:#E1F5EE;color:#0F6E56;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500">🟢 Ouverte</span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div style="background:var(--gray-bg);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">💳 Solde carte</div>
+        <div style="font-size:20px;font-weight:500;color:${sc.carte>=0?'var(--green)':'#A32D2D'}">${sc.carte.toFixed(2)} MAD</div>
+      </div>
+      <div style="background:var(--gray-bg);border-radius:8px;padding:10px 12px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:3px">💵 Solde cash</div>
+        <div style="font-size:20px;font-weight:500;color:${sc.cash>=0?'var(--green)':'#A32D2D'}">${sc.cash.toFixed(2)} MAD</div>
+      </div>
+    </div>
+    <div class="row"><span style="color:var(--muted)">Solde carte ouverture</span><span>${(currentPeriod.soldeCarte||0).toFixed(2)} MAD</span></div>
+    <div class="row"><span style="color:var(--muted)">Solde cash ouverture</span><span>${(currentPeriod.soldeCash||0).toFixed(2)} MAD</span></div>
+    <div class="row"><span style="color:var(--muted)">Alimentations carte</span><span style="color:var(--green)">+${totalFeedCarte.toFixed(2)} MAD</span></div>
+    <div class="row"><span style="color:var(--muted)">Alimentations cash</span><span style="color:var(--green)">+${totalFeedCash.toFixed(2)} MAD</span></div>
+    <div class="row"><span style="color:var(--muted)">Dépenses validées (${validated.length})</span><span style="color:#A32D2D">-${totalDep.toFixed(2)} MAD</span></div>
+    <div class="row"><span style="color:var(--muted)">En attente (${pending.length})</span><span style="color:#854F0B">${pending.length} dépense(s)</span></div>
+    <div style="margin-top:14px">
+      <button class="btn btn-red" onclick="confirmerCloture()" style="width:100%">🔒 Clôturer la période</button>
+    </div>`;
+
+  // Mouvements détaillés
+  if (mz) {
+    mz.classList.remove('hidden');
+    // Construire timeline triée par date
+    const mouvs = [];
+    feeds.forEach(f => mouvs.push({date:f.date||'',type:'feed',label:(f.type==='carte'?'💳 Alimentation carte':'💵 Alimentation cash'),montant:f.montant||0,signe:'+',note:f.note||''}));
+    deps.forEach(d => {
+      const payL={carte:'💳',cash:'💵',mixte:'🔀'}[d.paiement]||'';
+      const stBadge={EN_ATTENTE:'⏳',VALIDEE:'✅',REFUSEE:'❌',SUSPICION_DOUBLON:'⚠️',CLOTUREE:'🔒'}[d.statut]||'';
+      mouvs.push({date:d.date||'',type:'dep',label:payL+' '+d.categorie,montant:d.montant||0,signe:'-',statut:stBadge,st:d.statut});
+    });
+    mouvs.sort((a,b)=>a.date.localeCompare(b.date));
+    const ml = document.getElementById('mouvements-list');
+    if (!mouvs.length) { ml.innerHTML='<div class="loader">Aucun mouvement.</div>'; return; }
+    ml.innerHTML = mouvs.map(m => {
+      const isValid = m.type==='feed'||(m.type==='dep'&&m.st==='VALIDEE');
+      const color = m.type==='feed'?'var(--green)':(m.st==='REFUSEE'?'#ccc':(isValid?'#A32D2D':'#854F0B'));
+      const strike = m.st==='REFUSEE'?'text-decoration:line-through;opacity:0.5;':'';
+      return `<div class="row" style="${strike}">
+        <div>
+          <div style="font-size:14px;font-weight:500">${m.label}${m.note?' <span style="font-size:11px;color:var(--muted)">· '+m.note+'</span>':''}</div>
+          <div style="font-size:11px;color:var(--muted)">${m.date} ${m.statut||''}</div>
+        </div>
+        <div style="font-size:15px;font-weight:500;color:${color}">${m.signe}${m.montant.toFixed(2)} MAD</div>
       </div>`;
+    }).join('');
   }
 }
 
@@ -362,7 +429,7 @@ function setFeedType(type) {
 }
 
 async function doAlimentation() {
-  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez une période."; return; }
+  if (!currentPeriod) { document.getElementById('feed-msg').textContent = "⚠️ Ouvrez d'abord une période."; return; }
   const amt = parseFloat(document.getElementById('feed-amount').value);
   if (!amt || amt<=0) { document.getElementById('feed-msg').textContent = '⚠️ Montant invalide.'; return; }
   const note = document.getElementById('feed-note').value.trim();
