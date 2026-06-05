@@ -255,42 +255,52 @@ input:focus{box-shadow:0 0 0 2px #9FE1CB;border-color:var(--green)}
       <!-- CARTE -->
       <div style="background:#F1EFE8;border-radius:10px;padding:13px;margin-bottom:10px">
         <div style="font-size:13px;font-weight:500;margin-bottom:8px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💳 Carte</div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">Solde initial</span>
-          <span id="c-carte-init">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Ouverture</span><span id="c-carte-open">— MAD</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">Dépenses validées</span>
-          <span id="c-carte-valid" style="color:#A32D2D">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Alimentations</span><span id="c-carte-feed" style="color:#0F6E56">— MAD</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">En attente</span>
-          <span id="c-carte-pend" style="color:#854F0B">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Dépenses validées</span><span id="c-carte-valid" style="color:#A32D2D">— MAD</span>
         </div>
-        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+        <div style="border-top:0.5px solid var(--border);margin-top:6px;padding-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:4px">
+            <span>Solde validé</span><span id="c-carte-init">— MAD</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+            <span style="color:#854F0B">En attente</span><span id="c-carte-pend" style="color:#854F0B">— MAD</span>
+          </div>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde théorique</span>
-          <span id="c-carte-solde" style="font-size:19px;font-weight:500">— MAD</span>
+          <span id="c-carte-solde" style="font-size:18px;font-weight:500">— MAD</span>
         </div>
       </div>
 
       <!-- CASH -->
       <div style="background:#F1EFE8;border-radius:10px;padding:13px">
         <div style="font-size:13px;font-weight:500;margin-bottom:8px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💵 Cash</div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">Solde initial</span>
-          <span id="c-cash-init">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Ouverture</span><span id="c-cash-open">— MAD</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">Dépenses validées</span>
-          <span id="c-cash-valid" style="color:#A32D2D">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Alimentations</span><span id="c-cash-feed" style="color:#0F6E56">— MAD</span>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
-          <span style="color:var(--muted)">En attente</span>
-          <span id="c-cash-pend" style="color:#854F0B">— MAD</span>
+        <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+          <span style="color:var(--muted)">Dépenses validées</span><span id="c-cash-valid" style="color:#A32D2D">— MAD</span>
         </div>
-        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+        <div style="border-top:0.5px solid var(--border);margin-top:6px;padding-top:6px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:500;margin-bottom:4px">
+            <span>Solde validé</span><span id="c-cash-init">— MAD</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0">
+            <span style="color:#854F0B">En attente</span><span id="c-cash-pend" style="color:#854F0B">— MAD</span>
+          </div>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:6px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde théorique</span>
-          <span id="c-cash-solde" style="font-size:19px;font-weight:500">— MAD</span>
+          <span id="c-cash-solde" style="font-size:18px;font-weight:500">— MAD</span>
         </div>
       </div>
 
@@ -542,16 +552,26 @@ async function loadSoldesCoursier() {
   const soldeCarte = initCarte + feedCarte - valCarte;
   const soldeCash  = initCash  + feedCash  - valCash;
   // Affichage
-  document.getElementById('c-carte-init').textContent  = (initCarte+feedCarte).toFixed(2)+' MAD';
+  const theoCarte = soldeCarte - pendCarte;
+  const theoCash  = soldeCash  - pendCash;
+  const initC = period.soldeCarte||0;
+  const initK = period.soldeCash||0;
+  const feedC = feeds.filter(f=>f.type==='carte').reduce((s,f)=>s+(f.montant||0),0);
+  const feedK = feeds.filter(f=>f.type==='cash').reduce((s,f)=>s+(f.montant||0),0);
+  document.getElementById('c-carte-open').textContent  = initC.toFixed(2)+' MAD';
+  document.getElementById('c-carte-feed').textContent  = '+'+feedC.toFixed(2)+' MAD';
   document.getElementById('c-carte-valid').textContent = '-'+valCarte.toFixed(2)+' MAD';
+  document.getElementById('c-carte-init').textContent  = soldeCarte.toFixed(2)+' MAD';
   document.getElementById('c-carte-pend').textContent  = '-'+pendCarte.toFixed(2)+' MAD';
-  document.getElementById('c-carte-solde').textContent = soldeCarte.toFixed(2)+' MAD';
-  document.getElementById('c-carte-solde').style.color = soldeCarte>=0?'#0F6E56':'#A32D2D';
-  document.getElementById('c-cash-init').textContent   = (initCash+feedCash).toFixed(2)+' MAD';
+  document.getElementById('c-carte-solde').textContent = theoCarte.toFixed(2)+' MAD';
+  document.getElementById('c-carte-solde').style.color = theoCarte>=0?'#0F6E56':'#A32D2D';
+  document.getElementById('c-cash-open').textContent   = initK.toFixed(2)+' MAD';
+  document.getElementById('c-cash-feed').textContent   = '+'+feedK.toFixed(2)+' MAD';
   document.getElementById('c-cash-valid').textContent  = '-'+valCash.toFixed(2)+' MAD';
+  document.getElementById('c-cash-init').textContent   = soldeCash.toFixed(2)+' MAD';
   document.getElementById('c-cash-pend').textContent   = '-'+pendCash.toFixed(2)+' MAD';
-  document.getElementById('c-cash-solde').textContent  = soldeCash.toFixed(2)+' MAD';
-  document.getElementById('c-cash-solde').style.color  = soldeCash>=0?'#0F6E56':'#A32D2D';
+  document.getElementById('c-cash-solde').textContent  = theoCash.toFixed(2)+' MAD';
+  document.getElementById('c-cash-solde').style.color  = theoCash>=0?'#0F6E56':'#A32D2D';
 }
 
 init();
