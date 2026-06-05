@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mes Dépenses</title>
+
+<!-- ============================================================
+  ÉTAPE DE CONFIGURATION : remplacez les valeurs ci-dessous
+  par celles de votre projet Firebase
+  (les MÊMES valeurs que dans gestionnaire.html)
+============================================================ -->
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBULLg34cGZXf303FEStQQk1OheNfLlV2E",
+  authDomain: "depenses-coursier.firebaseapp.com",
+  projectId: "depenses-coursier",
+  storageBucket: "depenses-coursier.firebasestorage.app",
+  messagingSenderId: "265496206172",
+  appId: "1:265496206172:web:b4beb705b617444156bf99"
+
+};
+</script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f8f7f4;--card:#fff;--border:#e0ded6;
+  --text:#111;--muted:#666;
+  --green:#1D9E75;--green-light:#E1F5EE;--green-dark:#0F6E56;
+  --amber-bg:#FAEEDA;--amber:#854F0B;
+  --red-bg:#FCEBEB;--red:#A32D2D;
+}
+@media(prefers-color-scheme:dark){
+  :root{--bg:#1a1a18;--card:#252522;--border:#3a3a36;--text:#f0ede6;--muted:#999}
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:15px;min-height:100vh}
+.header{background:var(--card);border-bottom:0.5px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:500}
+.app{max-width:480px;margin:0 auto;padding:12px 14px}
+.card{background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px}
+
+/* Boutons catégorie */
+.cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.cat-btn{padding:10px 6px;border:0.5px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;text-align:center;font-size:22px;transition:all .15s;-webkit-user-select:none}
+.cat-btn span{display:block;font-size:10px;color:var(--muted);margin-top:3px;line-height:1.2}
+.cat-btn.selected{border:2px solid var(--green);background:var(--green-light)}
+.cat-btn:active{transform:scale(.95)}
+
+/* Boutons paiement */
+.pay-row{display:flex;gap:8px;margin-bottom:14px}
+.pay-btn{flex:1;padding:12px 6px;border:0.5px solid var(--border);border-radius:10px;background:var(--card);cursor:pointer;text-align:center;font-size:22px;transition:all .15s}
+.pay-btn span{display:block;font-size:11px;color:var(--muted);margin-top:3px}
+.pay-btn.selected{border:2px solid var(--green);background:var(--green-light)}
+
+/* Inputs */
+input[type=number],input[type=date]{width:100%;padding:11px 14px;border:0.5px solid var(--border);border-radius:10px;font-size:17px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:12px}
+input:focus{box-shadow:0 0 0 2px #9FE1CB;border-color:var(--green)}
+
+/* Boutons principaux */
+.btn{padding:11px 16px;border-radius:10px;border:0.5px solid var(--border);background:var(--card);cursor:pointer;font-size:14px;font-family:inherit;color:var(--text);transition:background .15s;width:100%}
+.btn-primary{background:var(--green);color:#fff;border-color:var(--green-dark);font-size:16px;font-weight:500;padding:14px}
+.btn-primary:disabled{opacity:.4;cursor:default}
+.btn-primary:not(:disabled):active{background:var(--green-dark)}
+.btn-back{background:none;border:0.5px solid var(--border);color:var(--text);width:auto;padding:10px 16px}
+
+/* Steps */
+.step{display:none}.step.active{display:block}
+.dots{display:flex;gap:6px;justify-content:center;margin-bottom:1.25rem}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border)}
+.dot.on{background:var(--green)}
+
+/* Badges */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:500}
+.b-pending{background:var(--amber-bg);color:var(--amber)}
+.b-ok{background:#EAF3DE;color:#3B6D11}
+.b-refused{background:var(--red-bg);color:var(--red)}
+.b-suspect{background:var(--amber-bg);color:var(--amber)}
+.b-closed{background:#F1EFE8;color:#5F5E5A}
+
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:0.5px solid var(--border)}
+.row:last-child{border-bottom:none}
+.section-title{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+.alert-warn{background:var(--amber-bg);color:var(--amber);border:0.5px solid #FAC775;padding:9px 13px;border-radius:8px;font-size:13px;margin-bottom:10px}
+.loader{text-align:center;color:var(--muted);padding:2rem;font-size:13px}
+.photo-zone{border:1.5px dashed var(--border);border-radius:10px;padding:22px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;margin-bottom:14px}
+.photo-zone:active{background:var(--bg)}
+.photo-ok{background:var(--green-light);color:var(--green-dark);border-radius:10px;padding:12px;text-align:center;font-weight:500;font-size:14px;margin-bottom:14px}
+.tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:0.5px solid var(--border)}
+.tab{padding:8px 14px;border:none;background:none;cursor:pointer;font-size:13px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚴 Mes dépenses</h1>
+  <div id="period-label" style="font-size:12px;color:var(--muted)">...</div>
+</div>
+
+<div class="app">
+  <div class="tabs">
+    <button class="tab active" onclick="showView('new',this)">➕ Nouvelle</button>
+    <button class="tab" onclick="showView('history',this)">📋 Mes dépenses</button>
+    <button class="tab" onclick="showView('soldes',this)">💰 Caisse</button>
+  </div>
+
+  <!-- ── VUE NOUVELLE DÉPENSE ── -->
+  <div id="view-new">
+
+    <!-- STEP 1 : Catégorie -->
+    <div id="s1" class="step active">
+      <div class="dots"><div class="dot on"></div><div class="dot" id="d2"></div><div class="dot" id="d3"></div><div class="dot" id="d4"></div></div>
+      <div class="card" style="text-align:center;padding-bottom:1rem">
+        <div style="font-size:36px;margin-bottom:6px">💸</div>
+        <div style="font-size:17px;font-weight:500;margin-bottom:14px">Quelle catégorie ?</div>
+
+        <div class="section-title" style="text-align:left">🚗 Véhicule / السيارة</div>
+        <div class="cat-grid">
+          <button class="cat-btn" onclick="pickCat(this,'⛽ Carburant / الكازوال')">⛽<span>الكازوال<br><small style="font-size:8px;color:#aaa">Carburant</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🔧 Réparation / الميكانيك')">🔧<span>الميكانيك<br><small style="font-size:8px;color:#aaa">Réparation</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🛞 Pneus / البنو')">🛞<span>البنو<br><small style="font-size:8px;color:#aaa">Pneus</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🚘 Parking / الباركينگ')">🚘<span>الباركينگ<br><small style="font-size:8px;color:#aaa">Parking</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🛣️ Péage / الطريق السيار')">🛣️<span>الطريق السيار<br><small style="font-size:8px;color:#aaa">Péage</small></span></button>
+        </div>
+        <div class="section-title" style="text-align:left">🍽️ Alimentation / الماكلة</div>
+        <div class="cat-grid">
+          <button class="cat-btn" onclick="pickCat(this,'🥩 Boucher / الجزار')">🥩<span>الجزار<br><small style="font-size:8px;color:#aaa">Boucher</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🍞 Boulanger / باتيسري')">🍞<span>باتيسري<br><small style="font-size:8px;color:#aaa">Boulanger</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🧺 Épicerie / الحانوت')">🧺<span>الحانوت<br><small style="font-size:8px;color:#aaa">Épicerie</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🛒 Supermarché / مرجان')">🛒<span>مرجان/كارفور<br><small style="font-size:8px;color:#aaa">Supermarché</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🥬 Marché / السوق')">🥬<span>السوق<br><small style="font-size:8px;color:#aaa">Marché</small></span></button>
+        </div>
+        <div class="section-title" style="text-align:left">🧺 Services / الخدمات</div>
+        <div class="cat-grid">
+          <button class="cat-btn" onclick="pickCat(this,'👔 Pressing / البريسينگ')">👔<span>البريسينگ<br><small style="font-size:8px;color:#aaa">Pressing</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🔩 Droguerie / دروكري')">🔩<span>دروكري<br><small style="font-size:8px;color:#aaa">Droguerie</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'📞 Téléphone / التيليفون')">📞<span>التيليفون<br><small style="font-size:8px;color:#aaa">Téléphone</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'💊 Pharmacie / الفارماسيان')">💊<span>الفارماسيان<br><small style="font-size:8px;color:#aaa">Pharmacie</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🚂 Train / القطار')">🚂<span>القطار<br><small style="font-size:8px;color:#aaa">Train</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🏨 Hôtel / الأوتيل')">🏨<span>الأوتيل<br><small style="font-size:8px;color:#aaa">Hôtel</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🍔 Repas / الماكلة')">🍔<span>الماكلة<br><small style="font-size:8px;color:#aaa">Repas</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'👨‍🔧 Maintenance / خدامة الدار')">👨‍🔧<span>خدامة الدار<br><small style="font-size:8px;color:#aaa">Maintenance</small></span></button>
+        </div>
+        <div class="section-title" style="text-align:left">🐄 Ferme / الفيرمة</div>
+        <div class="cat-grid">
+          <button class="cat-btn" onclick="pickCat(this,'🌾 Aliment / علف')">🌾<span>علف<br><small style="font-size:8px;color:#aaa">Aliment bétail</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🛢️ Engrais / لانكري')">🛢️<span>لانكري<br><small style="font-size:8px;color:#aaa">Engrais</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🐔 Animaux / الدجاج')">🐔<span>الدجاج</span></button>
+          <button class="cat-btn" onclick="pickCat(this,'🚜 Matériel / المعدات')">🚜<span>المعدات<br><small style="font-size:8px;color:#aaa">Matériel</small></span></button>
+          <button class="cat-btn" onclick="pickCat(this,'👨‍🌾 Fermier / خدامة الفيرمة')">👨‍🌾<span>خدامة الفيرمة<br><small style="font-size:8px;color:#aaa">Fermier</small></span></button>
+        </div>
+        <div class="section-title" style="text-align:left">➕ Autre / أخرى</div>
+        <div style="margin-bottom:10px">
+          <input type="text" id="cat-libre" placeholder="Tapez la catégorie..." style="width:100%;padding:10px 12px;border:0.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:var(--card);color:var(--text);outline:none;margin-bottom:8px">
+          <button class="cat-btn" style="width:100%;padding:10px" onclick="pickCatLibre()">➕<span>Valider</span></button>
+        </div>
+        <button class="btn btn-primary" id="btn1" onclick="goStep(2)" disabled style="margin-top:8px">Suivant →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 : Montant + paiement -->
+    <div id="s2" class="step">
+      <div class="dots"><div class="dot"></div><div class="dot on" id="d2"></div><div class="dot" id="d3"></div><div class="dot" id="d4"></div></div>
+      <div class="card">
+        <div style="font-size:16px;font-weight:500;margin-bottom:14px" id="s2-cat">—</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">💰 Montant total (MAD)</div>
+        <input type="number" id="inp-total" placeholder="0.00" min="0" step="0.01" oninput="onTotalChange()">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">💳 Paiement</div>
+        <div class="pay-row">
+          <button class="pay-btn" onclick="pickPay('carte',this)">💳<span>Carte</span></button>
+          <button class="pay-btn" onclick="pickPay('cash',this)">💵<span>Cash</span></button>
+          <button class="pay-btn" onclick="pickPay('mixte',this)">🔀<span>Mixte</span></button>
+        </div>
+        <div id="mixte-zone" style="display:none">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">💳 Montant carte (MAD)</div>
+          <input type="number" id="inp-carte" placeholder="0.00" min="0" step="0.01" oninput="checkMixte()">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">💵 Montant cash (MAD)</div>
+          <input type="number" id="inp-cash"  placeholder="0.00" min="0" step="0.01" oninput="checkMixte()">
+          <div id="mixte-err" class="alert-warn" style="display:none;margin-bottom:10px">⚠️ Carte + Cash ≠ Total</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px">📅 Date</div>
+        <input type="date" id="inp-date" oninput="checkStep2()">
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-back" onclick="goStep(1)">← Retour</button>
+          <button class="btn btn-primary" id="btn2" onclick="goStep(3)" disabled style="flex:1">Suivant →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 : Photo -->
+    <div id="s3" class="step">
+      <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot on"></div><div class="dot"></div></div>
+      <div class="card" style="text-align:center">
+        <div style="font-size:16px;font-weight:500;margin-bottom:14px">📸 Justificatif</div>
+        <div class="photo-zone" id="photo-zone" onclick="pickPhoto()">
+          <div style="font-size:34px;margin-bottom:8px">📷</div>
+          <div>Appuyer pour ajouter</div>
+          <div style="font-size:11px;margin-top:4px">(facultatif)</div>
+        </div>
+        <div class="photo-ok" id="photo-ok" style="display:none">✅ Photo ajoutée</div>
+        <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="onPhotoSelected(event)">
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-back" onclick="goStep(2)">← Retour</button>
+          <button class="btn btn-primary" onclick="goStep(4)" style="flex:1">Suivant →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4 : Confirmation -->
+    <div id="s4" class="step">
+      <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot on"></div></div>
+      <div class="card">
+        <div style="font-size:16px;font-weight:500;margin-bottom:14px;text-align:center">✅ Confirmer</div>
+        <div class="row"><span style="color:var(--muted)">Catégorie</span><span id="c-cat" style="font-weight:500"></span></div>
+        <div class="row"><span style="color:var(--muted)">Montant</span><span id="c-mont" style="font-weight:500;color:var(--green);font-size:18px"></span></div>
+        <div class="row"><span style="color:var(--muted)">Paiement</span><span id="c-pay" style="font-weight:500"></span></div>
+        <div class="row"><span style="color:var(--muted)">Date</span><span id="c-date" style="font-weight:500"></span></div>
+        <div class="row"><span style="color:var(--muted)">Photo</span><span id="c-photo" style="font-weight:500"></span></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn btn-back" onclick="goStep(3)">← Retour</button>
+          <button class="btn btn-primary" onclick="submit()" style="flex:1">✅ Envoyer</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div id="s-ok" class="step">
+      <div class="card" style="text-align:center;padding:2rem">
+        <div style="font-size:56px;margin-bottom:12px">✅</div>
+        <div style="font-size:20px;font-weight:500;margin-bottom:8px">Envoyée !</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:1rem">En attente de validation</div>
+        <span class="badge b-pending">⏳ EN ATTENTE</span>
+        <div style="margin-top:1.5rem">
+          <button class="btn btn-primary" onclick="resetForm()" style="margin-bottom:8px">➕ Nouvelle dépense</button>
+          <button class="btn" onclick="showView('history', document.querySelectorAll('.tab')[1])">📋 Mes dépenses</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VUE HISTORIQUE ── -->
+  <div id="view-history" style="display:none">
+    <div id="hist-list"><div class="loader">Chargement...</div></div>
+  </div>
+
+  <!-- ── VUE SOLDES ── -->
+  <div id="view-soldes" style="display:none">
+    <div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500;color:var(--muted);margin-bottom:12px;text-align:center">📊 État de la caisse — lecture seule</div>
+
+      <!-- CARTE -->
+      <div style="background:#F1EFE8;border-radius:10px;padding:13px;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💳 Carte</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">Solde initial</span>
+          <span id="c-carte-init">— MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">Dépenses validées</span>
+          <span id="c-carte-valid" style="color:#A32D2D">— MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">En attente</span>
+          <span id="c-carte-pend" style="color:#854F0B">— MAD</span>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde théorique</span>
+          <span id="c-carte-solde" style="font-size:19px;font-weight:500">— MAD</span>
+        </div>
+      </div>
+
+      <!-- CASH -->
+      <div style="background:#F1EFE8;border-radius:10px;padding:13px">
+        <div style="font-size:13px;font-weight:500;margin-bottom:8px;border-bottom:0.5px solid var(--border);padding-bottom:6px">💵 Cash</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">Solde initial</span>
+          <span id="c-cash-init">— MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">Dépenses validées</span>
+          <span id="c-cash-valid" style="color:#A32D2D">— MAD</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;padding:4px 0">
+          <span style="color:var(--muted)">En attente</span>
+          <span id="c-cash-pend" style="color:#854F0B">— MAD</span>
+        </div>
+        <div style="border-top:1.5px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;font-weight:500;color:var(--muted)">Solde théorique</span>
+          <span id="c-cash-solde" style="font-size:19px;font-weight:500">— MAD</span>
+        </div>
+      </div>
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:10px">
+        ℹ️ Solde théorique = après validation par le gestionnaire
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp(FIREBASE_CONFIG);
+const db = firebase.firestore();
+
+const state = {cat:'',pay:'',total:0,photo:false,photoData:null,date:''};
+let currentPeriodId = null;
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  setDefaultDate();
+  const snap = await db.collection('periodes').where('statut','==','OUVERTE').limit(1).get();
+  if (!snap.empty) {
+    const p = snap.docs[0];
+    currentPeriodId = p.id;
+    document.getElementById('period-label').textContent = '📅 ' + p.data().nom;
+  } else {
+    document.getElementById('period-label').textContent = '⚠️ Pas de période';
+  }
+}
+
+function setDefaultDate() {
+  const t = new Date();
+  const s = t.toISOString().split('T')[0];
+  const min = new Date(t); min.setDate(min.getDate()-2);
+  const inp = document.getElementById('inp-date');
+  inp.value = s; inp.max = s; inp.min = min.toISOString().split('T')[0];
+}
+
+// ── Navigation steps ─────────────────────────────────────────
+function goStep(n) {
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s'+n).classList.add('active');
+  [2,3,4].forEach(i=>{
+    const d=document.getElementById('d'+i);
+    if(d) d.className='dot'+(i<=n?' on':'');
+  });
+  if(n===4) fillConfirm();
+}
+
+// ── Catégorie ─────────────────────────────────────────────────
+function pickCatLibre() {
+  const val = document.getElementById('cat-libre').value.trim();
+  if (!val) return;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('selected'));
+  state.cat = '➕ ' + val;
+  document.getElementById('btn1').disabled = false;
+  // feedback visuel
+  document.getElementById('cat-libre').style.borderColor = 'var(--green)';
+  document.getElementById('cat-libre').style.boxShadow = '0 0 0 2px #9FE1CB';
+}
+function pickCat(btn, cat) {
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  state.cat = cat;
+  const b=document.getElementById('btn1');b.disabled=false;
+}
+
+// ── Montant / paiement ────────────────────────────────────────
+function pickPay(type, btn) {
+  state.pay=type;
+  document.querySelectorAll('.pay-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('mixte-zone').style.display=type==='mixte'?'block':'none';
+  checkStep2();
+}
+function onTotalChange() {
+  state.total=parseFloat(document.getElementById('inp-total').value)||0;
+  checkStep2();
+}
+function checkMixte() {
+  const c=parseFloat(document.getElementById('inp-carte').value)||0;
+  const cash=parseFloat(document.getElementById('inp-cash').value)||0;
+  const ok=Math.abs(c+cash-state.total)<0.01;
+  document.getElementById('mixte-err').style.display=ok?'none':'block';
+  checkStep2();
+}
+function checkStep2() {
+  const ok = state.total>0 && state.pay!=='' && document.getElementById('inp-date').value!=='';
+  let mixteOk=true;
+  if(state.pay==='mixte'){
+    const c=parseFloat(document.getElementById('inp-carte').value)||0;
+    const cash=parseFloat(document.getElementById('inp-cash').value)||0;
+    mixteOk=Math.abs(c+cash-state.total)<0.01;
+  }
+  document.getElementById('btn2').disabled=!(ok&&mixteOk);
+}
+
+// ── Photo ─────────────────────────────────────────────────────
+function pickPhoto() {
+  document.getElementById('file-input').click();
+}
+function onPhotoSelected(e) {
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    state.photo=true;
+    state.photoData=ev.target.result;
+    document.getElementById('photo-zone').style.display='none';
+    document.getElementById('photo-ok').style.display='block';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Confirmation ──────────────────────────────────────────────
+function fillConfirm() {
+  document.getElementById('c-cat').textContent=state.cat;
+  document.getElementById('c-mont').textContent=state.total.toFixed(2)+' MAD';
+  const payL={carte:'💳 Carte',cash:'💵 Cash',mixte:'🔀 Mixte'};
+  document.getElementById('c-pay').textContent=payL[state.pay]||state.pay;
+  document.getElementById('c-date').textContent=document.getElementById('inp-date').value;
+  document.getElementById('c-photo').textContent=state.photo?'✅ Oui':'—';
+}
+
+// ── Soumettre ─────────────────────────────────────────────────
+async function submit() {
+  const submitBtn = document.querySelector("#s4 .btn-primary");
+  if (submitBtn) { submitBtn.disabled=true; submitBtn.textContent="⏳ Envoi..."; }
+  const date=document.getElementById('inp-date').value;
+  const doc={
+    categorie:state.cat,
+    montant:state.total,
+    paiement:state.pay,
+    montantCarte:parseFloat(document.getElementById('inp-carte').value)||0,
+    montantCash:parseFloat(document.getElementById('inp-cash').value)||0,
+    photo:state.photo,
+    photoData:state.photoData||null,
+    date,
+    periodeId:currentPeriodId||null,
+    statut:'EN_ATTENTE',
+    createdAt:new Date().toISOString()
+  };
+
+  try {
+    await db.collection("depenses").add(doc);
+  } catch(e) {
+    if (submitBtn) { submitBtn.disabled=false; submitBtn.textContent="✅ Envoyer"; }
+    alert("Erreur : " + e.message);
+    return;
+  }
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s-ok').classList.add('active');
+}
+
+// ── Historique ────────────────────────────────────────────────
+function listenHistory() {
+  db.collection('depenses').orderBy('createdAt','desc').limit(50)
+    .onSnapshot(snap=>{
+      const z=document.getElementById('hist-list');
+      if(snap.empty){z.innerHTML='<div class="loader">Aucune dépense.</div>';return;}
+      const bClass={EN_ATTENTE:'b-pending',VALIDEE:'b-ok',REFUSEE:'b-refused',SUSPICION_DOUBLON:'b-suspect',CLOTUREE:'b-closed'};
+      const bLabel={EN_ATTENTE:'⏳ En attente',VALIDEE:'✅ Validée',REFUSEE:'❌ Refusée',SUSPICION_DOUBLON:'⏳ En attente',CLOTUREE:'🔒 Clôturée'};
+      z.innerHTML=snap.docs.map(d=>{
+        const e={id:d.id,...d.data()};
+        const canEdit=e.statut==='EN_ATTENTE'||e.statut==='SUSPICION_DOUBLON';
+        return `<div style="background:var(--card);border:0.5px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:500;font-size:15px">${e.categorie||'—'}</div>
+              <div style="font-size:12px;color:var(--muted)">${e.date||''}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-weight:500;color:var(--green);font-size:17px">${Number(e.montant||0).toFixed(2)} MAD</div>
+              <span class="badge ${bClass[e.statut]||'b-pending'}">${bLabel[e.statut]||e.statut}</span>
+            </div>
+          </div>
+          ${canEdit?`<div style="display:flex;gap:6px;margin-top:10px">
+            <button class="btn" style="flex:1;font-size:13px;padding:8px" onclick="delDep('${e.id}')">🗑️ Supprimer</button>
+          </div>`:''}
+        </div>`;
+      }).join('');
+    });
+}
+
+async function delDep(id) {
+  if(!confirm('Supprimer cette dépense ?')) return;
+  await db.collection('depenses').doc(id).delete();
+}
+
+// ── Reset ─────────────────────────────────────────────────────
+function resetForm() {
+  state.cat='';state.pay='';state.total=0;state.photo=false;state.photoData=null;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.pay-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('inp-total').value='';
+  document.getElementById('inp-carte').value='';
+  document.getElementById('inp-cash').value='';
+  document.getElementById('mixte-zone').style.display='none';
+  document.getElementById('photo-zone').style.display='block';
+  document.getElementById('photo-ok').style.display='none';
+  document.getElementById('file-input').value='';
+  document.getElementById('btn1').disabled=true;
+  document.getElementById('btn2').disabled=true;
+  setDefaultDate();
+  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+  document.getElementById('s1').classList.add('active');
+  showView('new', document.querySelector('.tab.active'));
+}
+
+// ── Vue switch ────────────────────────────────────────────────
+let histListening=false;
+function showView(name, btn) {
+  document.getElementById('view-new').style.display=name==='new'?'block':'none';
+  document.getElementById('view-history').style.display=name==='history'?'block':'none';
+  document.getElementById('view-soldes').style.display=name==='soldes'?'block':'none';
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  if(name==='history'&&!histListening){listenHistory();histListening=true;}
+  if(name==='soldes') loadSoldesCoursier();
+}
+
+async function loadSoldesCoursier() {
+  if(!currentPeriodId) return;
+  // Récupérer la période
+  const pSnap = await db.collection('periodes').doc(currentPeriodId).get();
+  const period = pSnap.data();
+  const initCarte = period.soldeCarte||0;
+  const initCash  = period.soldeCash||0;
+  // Alimentations
+  const fSnap = await db.collection('alimentations').where('periodeId','==',currentPeriodId).get();
+  let feedCarte=0, feedCash=0;
+  fSnap.docs.forEach(d=>{ const f=d.data(); if(f.type==='carte') feedCarte+=f.montant||0; else feedCash+=f.montant||0; });
+  // Dépenses validées
+  const vSnap = await db.collection('depenses').where('periodeId','==',currentPeriodId).where('statut','==','VALIDEE').get();
+  let valCarte=0, valCash=0;
+  vSnap.docs.forEach(d=>{ const dep=d.data();
+    if(dep.paiement==='carte') valCarte+=dep.montant||0;
+    else if(dep.paiement==='cash') valCash+=dep.montant||0;
+    else if(dep.paiement==='mixte'){valCarte+=dep.montantCarte||0; valCash+=dep.montantCash||0;}
+  });
+  // Dépenses en attente
+  const pSnap2 = await db.collection('depenses').where('periodeId','==',currentPeriodId).where('statut','in',['EN_ATTENTE','SUSPICION_DOUBLON']).get();
+  let pendCarte=0, pendCash=0;
+  pSnap2.docs.forEach(d=>{ const dep=d.data();
+    if(dep.paiement==='carte') pendCarte+=dep.montant||0;
+    else if(dep.paiement==='cash') pendCash+=dep.montant||0;
+    else if(dep.paiement==='mixte'){pendCarte+=dep.montantCarte||0; pendCash+=dep.montantCash||0;}
+  });
+  const soldeCarte = initCarte + feedCarte - valCarte;
+  const soldeCash  = initCash  + feedCash  - valCash;
+  // Affichage
+  document.getElementById('c-carte-init').textContent  = (initCarte+feedCarte).toFixed(2)+' MAD';
+  document.getElementById('c-carte-valid').textContent = '-'+valCarte.toFixed(2)+' MAD';
+  document.getElementById('c-carte-pend').textContent  = '-'+pendCarte.toFixed(2)+' MAD';
+  document.getElementById('c-carte-solde').textContent = soldeCarte.toFixed(2)+' MAD';
+  document.getElementById('c-carte-solde').style.color = soldeCarte>=0?'#0F6E56':'#A32D2D';
+  document.getElementById('c-cash-init').textContent   = (initCash+feedCash).toFixed(2)+' MAD';
+  document.getElementById('c-cash-valid').textContent  = '-'+valCash.toFixed(2)+' MAD';
+  document.getElementById('c-cash-pend').textContent   = '-'+pendCash.toFixed(2)+' MAD';
+  document.getElementById('c-cash-solde').textContent  = soldeCash.toFixed(2)+' MAD';
+  document.getElementById('c-cash-solde').style.color  = soldeCash>=0?'#0F6E56':'#A32D2D';
+}
+
+init();
+</script>
+</body>
+</html>
